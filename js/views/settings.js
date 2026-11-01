@@ -8,7 +8,7 @@ export function renderSettings($root) {
     <section class="card">
       <h2>Trip settings</h2>
       <div class="form-grid">
-        <label class="field">Day 1 date <input type="date" data-set="start_date" value="${esc(plan.start_date)}"></label>
+        <label class="field">Day 0 date (first ride) <input type="date" data-set="start_date" value="${esc(plan.start_date)}"></label>
         <label class="field">Depart each morning <input type="time" data-set="depart_time" value="${esc(plan.depart_time)}"></label>
         <label class="field">Average moving speed (km/h) <input type="number" step="0.5" min="5" data-set="avg_kmh" value="${plan.avg_kmh}"></label>
         <label class="field">Climbing rate (m/h) <input type="number" step="25" min="50" data-set="climb_m_per_h" value="${plan.climb_m_per_h}"></label>
@@ -16,16 +16,6 @@ export function renderSettings($root) {
         <label class="field">Flag resupply gaps of at least (km) <input type="number" step="1" min="5" data-set="gap_km" value="${plan.gap_km}"></label>
       </div>
       <p class="muted small">Ride time = distance ÷ speed + climb ÷ climbing rate. Breaks aren't included, so add some slack.</p>
-    </section>
-
-    <section class="card">
-      <h2>Day 0 shakedown</h2>
-      <label class="inline"><input type="checkbox" id="shake-on" ${plan.shakedown.enabled ? 'checked' : ''}> Include a shakedown ride</label>
-      <div class="form-grid">
-        <label class="field">Date <input type="date" id="shake-date" value="${esc(plan.shakedown.date)}"></label>
-        <label class="field">Distance (km) <input type="number" step="1" min="1" id="shake-km" value="${plan.shakedown.km}"></label>
-      </div>
-      <p class="muted small">Separate from the route. Its distance isn't counted in route days.</p>
     </section>
 
     <section class="card">
@@ -58,27 +48,12 @@ export function renderSettings($root) {
       const key = input.dataset.set;
       const v = input.type === 'number' ? Number(input.value) : input.value;
       if (input.type === 'number' && !(v > 0)) return;
+      if (input.type === 'date' || input.type === 'time') {
+        if (!input.value) return; // keep the previous valid value
+      }
       state.plan[key] = v;
       changed();
     });
-  });
-
-  $root.querySelector('#shake-on').addEventListener('change', (e) => {
-    state.plan.shakedown.enabled = e.target.checked;
-    changed();
-  });
-  $root.querySelector('#shake-date').addEventListener('change', (e) => {
-    if (e.target.value) {
-      state.plan.shakedown.date = e.target.value;
-      changed();
-    }
-  });
-  $root.querySelector('#shake-km').addEventListener('change', (e) => {
-    const km = Number(e.target.value);
-    if (km > 0) {
-      state.plan.shakedown.km = km;
-      changed();
-    }
   });
 
   $root.querySelector('#gpx-file').addEventListener('change', async (e) => {

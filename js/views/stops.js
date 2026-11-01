@@ -29,7 +29,8 @@ export function renderStops($root) {
   const threshold = plan.gap_km;
   const major = gaps.filter((g) => g.len >= threshold);
 
-  const dayOptions = plan.days.map((_, i) => `<option value="${i}" ${i === view.day ? 'selected' : ''}>Day ${i + 1}</option>`).join('');
+  if (view.day >= plan.days.length) view.day = plan.days.length - 1;
+  const dayOptions = plan.days.map((_, i) => `<option value="${i}" ${i === view.day ? 'selected' : ''}>Day ${i}</option>`).join('');
   const q = view.query.trim().toLowerCase();
   const matching = stops.filter((s) => matchesKind(s.type) && (!q || s.name.toLowerCase().includes(q) || (s.name_ko || '').includes(q)));
   const shown = matching.slice(0, LIMIT);
@@ -100,8 +101,8 @@ export function renderStops($root) {
 function dayOfKm(plan, km) {
   let prev = 0;
   for (let i = 0; i < plan.days.length; i++) {
-    if (km <= plan.days[i].end_km + 1e-9 && km >= prev) return i + 1;
+    if (km <= plan.days[i].end_km + 1e-9 && km >= prev) return i;
     prev = plan.days[i].end_km;
   }
-  return plan.days.length;
+  return plan.days.length - 1;
 }

@@ -32,28 +32,26 @@ function write(key, value) {
 
 export const round1 = (v) => Math.round(v * 10) / 10;
 
-// Day 0 shakedown ride. Separate from the route: its km don't count toward the route.
-export function defaultShakedown() {
-  return { enabled: true, km: 35, date: '2026-11-08', notes: '', booked: '' };
-}
+// Day 0 is the first riding day (after BikeNara pickup), covering km 0 to ~35.
+// Days 1-9 spread the rest of the route to Busan.
+export const DAY0_END_KM = 35;
 
 export function defaultPlan(totalKm) {
-  const n = 9;
+  const n = 10;
   const days = Array.from({ length: n }, (_, i) => ({
-    end_km: round1((totalKm * (i + 1)) / n),
+    end_km: i === 0 ? DAY0_END_KM : round1(DAY0_END_KM + ((totalKm - DAY0_END_KM) * i) / (n - 1)),
     notes: '',
     booked: '',
   }));
   days[n - 1].end_km = round1(totalKm);
   return {
-    version: 1,
-    start_date: '2026-11-09',
+    version: 2,
+    start_date: '2026-11-08', // Day 0
     depart_time: '08:00',
     avg_kmh: 16,
     climb_m_per_h: 350,
     max_day_km: 90,
     gap_km: 20,
-    shakedown: defaultShakedown(),
     days,
   };
 }
@@ -61,11 +59,9 @@ export function defaultPlan(totalKm) {
 // Make a plan safe for the current route: numbers in range, ends strictly increasing.
 export function sanitizePlan(raw, totalKm) {
   const base = defaultPlan(totalKm);
-  if (!raw || !Array.isArray(raw.days) || raw.days.length === 0) return base;
+  // Plans saved before Day 0 was added (version 1) are replaced by the new default.
+  if (!raw || raw.version !== 2 || !Array.isArray(raw.days) || raw.days.length === 0) return base;
   const plan = { ...base, ...pickSettings(raw) };
-  plan.shakedown = { ...defaultShakedown(), ...(raw.shakedown || {}) };
-  plan.shakedown.km = Math.max(1, Number(plan.shakedown.km) || 35);
-  plan.shakedown.enabled = Boolean(plan.shakedown.enabled);
   plan.days = raw.days.map((d) => ({
     end_km: Number(d.end_km) || 0,
     notes: String(d.notes ?? ''),

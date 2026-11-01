@@ -54,15 +54,15 @@ function dayCard(i, plan, route, stops) {
   return `
   <article class="card day" data-day="${i}">
     <header class="day-head">
-      <h2>Day ${i + 1}</h2>
-      <span class="muted">${fmtDay(st.date)}</span>
+      <h2>Day ${i}</h2>
+      <span class="muted">${i === 0 ? 'First ride · ' : ''}${fmtDay(st.date)}</span>
     </header>
 
     <div class="km-row">
       <span class="km-from">${fmtKm(st.start)} km</span>
       <span class="arrow">→</span>
       <input type="number" class="km-input" step="0.5" min="${fmtKm(st.start + 0.1)}" max="${total}"
-             value="${fmtKm(st.end)}" data-end="${i}" aria-label="End km for day ${i + 1}">
+             value="${fmtKm(st.end)}" data-end="${i}" aria-label="End km for day ${i}">
       <div class="nudge">
         <button data-nudge="${i}" data-by="-5">−5</button>
         <button data-nudge="${i}" data-by="-1">−1</button>
@@ -138,41 +138,11 @@ function summary(plan, route) {
   </section>`;
 }
 
-function shakedownCard(plan, route) {
-  const sh = plan.shakedown;
-  if (!sh.enabled) return '';
-  const rideH = sh.km / plan.avg_kmh;
-  const departAt = new Date(`${sh.date}T${plan.depart_time}:00+09:00`);
-  const arriveAt = new Date(departAt.getTime() + rideH * 3600e3);
-  const sun = sunTimes(sh.date, route.points[0][0], route.points[0][1]);
-  return `
-  <article class="card day shakedown">
-    <header class="day-head">
-      <h2>Day 0 · Shakedown</h2>
-      <span class="muted">${fmtDay(sh.date)}</span>
-    </header>
-    <label class="field">Distance (km)
-      <input type="number" step="1" min="1" data-shake="km" value="${fmtKm(sh.km)}">
-    </label>
-    <p class="stats">
-      <strong>${fmtKm(sh.km)} km</strong>
-      · ride ~${fmtHours(rideH)}
-      · depart ${fmtKst(departAt)} → arrive ~${fmtKst(arriveAt)}
-      · sunset ${fmtKst(sun?.set)}
-    </p>
-    <p class="muted small">Not counted toward route km. Use it to check the bikes and kit before the start.</p>
-    <label class="field">Notes
-      <textarea rows="2" data-shake="notes">${esc(sh.notes)}</textarea>
-    </label>
-  </article>`;
-}
-
 export function renderDays($root) {
   const { plan, route, stops } = state;
   const total = route.total_km;
 
   $root.innerHTML = `
-    ${shakedownCard(plan, route)}
     ${summary(plan, route)}
     ${plan.days.map((_, i) => dayCard(i, plan, route, stops)).join('')}
     <p class="muted footnote">Times assume ${plan.avg_kmh} km/h on the flat plus ${plan.climb_m_per_h} m/h of climbing. Change these in Settings.</p>`;
@@ -212,16 +182,7 @@ export function renderDays($root) {
 
   $root.onchange = (e) => {
     const el = e.target;
-    if (el.dataset.shake !== undefined) {
-      if (el.dataset.shake === 'km') {
-        const km = Number(el.value);
-        if (!(km > 0)) return;
-        plan.shakedown.km = km;
-      } else {
-        plan.shakedown[el.dataset.shake] = el.value;
-      }
-      changed();
-    } else if (el.dataset.end !== undefined) {
+    if (el.dataset.end !== undefined) {
       setDayEnd(plan, Number(el.dataset.end), Number(el.value), total);
       changed();
     } else if (el.dataset.field) {

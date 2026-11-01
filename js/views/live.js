@@ -1,11 +1,13 @@
 /* global L */
 import { state, dayStarts, dayDate } from '../state.js';
-import { nearestOnRoute, serviceGaps, SERVICE_TYPES } from '../geo.js';
+import { nearestOnRoute, serviceGaps, SERVICE_TYPES, TOWN_TYPES, isLodging } from '../geo.js';
 import { sunTimes } from '../sun.js';
 import { esc, fmtKm, fmtKst } from '../util.js';
 
 const OFF_ROUTE_M = 300;
 const DEFAULT_ZOOM = 14;
+const COMING_UP_TOWNS = 3;
+const COMING_UP_LODGING = 2;
 
 let watchId = null;
 let last = null;          // latest derived reading
@@ -70,6 +72,20 @@ function derive(pos) {
       if (nextShop && nextLodging) break;
     }
   }
+  // Next few towns and lodging options ahead (shops are covered by "Next shop").
+  // Up to 3 towns and 2 lodging options, merged in route order.
+  let upcoming = [];
+  if (!state.isCustom) {
+    const towns = [];
+    const lodging = [];
+    for (const s of stops) {
+      if (s.km <= km + 0.05) continue;
+      if (TOWN_TYPES.has(s.type) && towns.length < COMING_UP_TOWNS) towns.push(s);
+      else if (isLodging(s.type) && lodging.length < COMING_UP_LODGING) lodging.push(s);
+      if (towns.length === COMING_UP_TOWNS && lodging.length === COMING_UP_LODGING) break;
+    }
+    upcoming = [...towns, ...lodging].sort((a, b) => a.km - b.km);
+  }
   const gapAhead = state.isCustom
     ? null
     : serviceGaps(route, stops, 5).find((g) => g.from <= km && g.to > km && g.len >= state.plan.gap_km);
@@ -81,12 +97,12 @@ function derive(pos) {
     km,
     index: near.index,
     offsetM: near.offsetKm * 1000,
-    dayNo: i + 1,
-    dayCount: plan.days.length,
+    dayNo: i,
     toDayEnd: endKm - km,
     toEnd: route.total_km - km,
     nextShop,
     nextLodging,
+    upcoming,
     gapAhead,
     sunset: sun?.set,
     time: new Date(pos.timestamp),
@@ -174,7 +190,7 @@ function panel(d) {
       <span class="muted">of ${fmtKm(state.route.total_km)} km</span>
     </div>
     <div class="stat-grid">
-      <div><span class="muted">Day</span><strong>${d.dayNo} of ${d.dayCount}</strong></div>
+      <div><span class="muted">Day</span><strong>${d.dayNo}</strong></div>
       <div><span class="muted">To end of today</span><strong>${fmtKm(d.toDayEnd)} km</strong></div>
       <div><span class="muted">To route end</span><strong>${fmtKm(d.toEnd)} km</strong></div>
       <div><span class="muted">Sunset at today's stop</span><strong>${fmtKst(d.sunset)}</strong></div>
@@ -187,6 +203,16 @@ function panel(d) {
     ${d.gapAhead ? `<p class="warn-line">Resupply gap ahead: ${fmtKm(d.gapAhead.len)} km with no shops (km ${fmtKm(d.gapAhead.from)} → ${fmtKm(d.gapAhead.to)}).</p>` : ''}
     ${d.nextShop ? `<p>Next shop: <strong>${esc(d.nextShop.name)}</strong> at km ${fmtKm(d.nextShop.km)} (${fmtKm(d.nextShop.km - d.km)} km ahead)</p>` : ''}
     ${d.nextLodging ? `<p>Next lodging: <strong>${esc(d.nextLodging.name)}</strong> at km ${fmtKm(d.nextLodging.km)} (${fmtKm(d.nextLodging.km - d.km)} km ahead)</p>` : ''}
+    ${d.upcoming.length ? `
+    <h3 class="coming-up-title">Coming up</h3>
+    <ol class="coming-up">
+      ${d.upcoming.map((s) => `
+        <li>
+          <span class="stop-name">${esc(s.name)}</span>
+          <span class="muted">${esc(s.type.replace('lodging:', ''))} · km ${fmtKm(s.km)}</span>
+          <span class="ahead">${fmtKm(s.km - d.km)} km</span>
+        </li>`).join('')}
+    </ol>` : ''}
     <p class="muted small">GPS accuracy ±${Math.round(d.accuracy)} m · last fix ${d.time.toLocaleTimeString('en-GB')}</p>`;
 }
 
@@ -242,6 +268,12 @@ export function renderLive($root) {
         updatePosition(last);
       },
       (err) => {
+        // PERMISSION_DENIED (1) will not recover on its own, so stop watching.
+        if (err.code === 1) {
+          stopLive();
+          last = null;
+          renderLive($root);
+        }
         const body = $root.querySelector('#live-body');
         if (body) body.innerHTML = `<p class="warn-line">Could not get location: ${esc(err.message)}</p>`;
       },

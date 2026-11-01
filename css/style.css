@@ -154,3 +154,12 @@ details summary { cursor: pointer; margin: 8px 0; }
 
 .live-map { height: 50vh; min-height: 280px; margin-top: 12px; }
 #live-body { margin-top: 12px; }
+
+.coming-up-title { margin-top: 14px; font-size: .95rem; }
+.coming-up { list-style: none; padding: 0; margin: 6px 0 0; }
+.coming-up li {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.coming-up li .muted { grid-column: 1; font-size: .85rem; }
+.coming-up li .ahead { grid-column: 2; grid-row: 1 / span 2; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -13,7 +13,8 @@ const filters = { service: true, town: true, lodging: true };
 let map = null;
 let cursorMarker = null;
 let cursorKm = null;
-let profileCtx = null; // { x0, width, km0, km1 } for pointer mapping
+let profileCtx = null; // { pad, plotW, total } for pointer mapping
+let resizeBound = false;
 
 function groupOf(type) {
   if (SERVICE_TYPES.has(type)) return 'service';
@@ -53,7 +54,7 @@ export function renderMap($root) {
       <p id="cursor-info" class="muted">Tap the profile to pick a point.</p>
       <div class="actions">
         <label class="inline">Set end of
-          <select id="cursor-day">${plan.days.map((_, i) => `<option value="${i}">Day ${i + 1}</option>`).join('')}</select>
+          <select id="cursor-day">${plan.days.map((_, i) => `<option value="${i}">Day ${i}</option>`).join('')}</select>
         </label>
         <button id="cursor-apply" disabled>Set to this km</button>
       </div>
@@ -74,7 +75,7 @@ export function renderMap($root) {
     const latlngs = route.points.slice(a, b + 1).map((p) => [p[0], p[1]]);
     if (latlngs.length > 1) {
       L.polyline(latlngs, { color: DAY_COLOURS[i % DAY_COLOURS.length], weight: 5, opacity: 0.85 })
-        .bindTooltip(`Day ${i + 1}: ${fmtKm(d.end_km - starts[i])} km`)
+        .bindTooltip(`Day ${i}: ${fmtKm(d.end_km - starts[i])} km`)
         .addTo(map);
       bounds.push(...latlngs);
     }
@@ -82,11 +83,11 @@ export function renderMap($root) {
     L.marker([endPt[0], endPt[1]], {
       icon: L.divIcon({
         className: 'day-pin',
-        html: `<span style="background:${DAY_COLOURS[i % DAY_COLOURS.length]}">${i + 1}</span>`,
+        html: `<span style="background:${DAY_COLOURS[i % DAY_COLOURS.length]}">${i}</span>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12],
       }),
-    }).bindTooltip(`End of day ${i + 1} · km ${fmtKm(d.end_km)}`).addTo(map);
+    }).bindTooltip(`End of day ${i} · km ${fmtKm(d.end_km)}`).addTo(map);
   });
   if (bounds.length) map.fitBounds(bounds, { padding: [16, 16] });
 
@@ -102,7 +103,7 @@ export function renderMap($root) {
         fillOpacity: 0.9,
         weight: 1,
       }).addTo(map);
-      const dayOptions = plan.days.map((_, i) => `<option value="${i}">Day ${i + 1}</option>`).join('');
+      const dayOptions = plan.days.map((_, i) => `<option value="${i}">Day ${i}</option>`).join('');
       circle.bindPopup(`
         <strong>${esc(s.name)}</strong>${s.name_ko && s.name_ko !== s.name ? `<br>${esc(s.name_ko)}` : ''}<br>
         <span class="muted">${esc(s.type)} · km ${fmtKm(s.km)}</span><br>
@@ -118,11 +119,14 @@ export function renderMap($root) {
 
   map.on('popupopen', (e) => {
     const el = e.popup.getElement();
-    el.querySelector('[data-popup-set]')?.addEventListener('click', (ev) => {
-      const day = Number(el.querySelector('[data-popup-day]').value);
-      setDayEnd(plan, day, Number(ev.currentTarget.dataset.km), total);
-      changed();
-    });
+    const btn = el.querySelector('[data-popup-set]');
+    if (btn) {
+      btn.onclick = (ev) => {
+        const day = Number(el.querySelector('[data-popup-day]').value);
+        setDayEnd(plan, day, Number(ev.currentTarget.dataset.km), total);
+        changed();
+      };
+    }
   });
 
   $root.querySelectorAll('[data-filter]').forEach((input) => {
@@ -155,7 +159,7 @@ function updateCursorInfo($root) {
   const i = indexAtKm(route, cursorKm);
   const p = route.points[i];
   $root.querySelector('#cursor-info').textContent =
-    `km ${fmtKm(cursorKm)} · elevation ${Math.round(route.ele[i])} m · in Day ${dayOfKm(plan, cursorKm) + 1}`;
+    `km ${fmtKm(cursorKm)} · elevation ${Math.round(route.ele[i])} m · in Day ${dayOfKm(plan, cursorKm)}`;
   $root.querySelector('#cursor-apply').disabled = false;
   $root.querySelector('#cursor-day').value = String(dayOfKm(plan, cursorKm));
   if (map && p) placeCursor(cursorKm);
@@ -262,7 +266,11 @@ function wireProfile(canvas, $root) {
     updateCursorInfo($root);
   };
   canvas.addEventListener('click', pick);
-  window.addEventListener('resize', () => {
-    if (canvas.isConnected) drawProfile(canvas);
-  }, { once: true });
+  if (!resizeBound) {
+    resizeBound = true;
+    window.addEventListener('resize', () => {
+      const c = document.getElementById('profile');
+      if (c && profileCtx) drawProfile(c);
+    });
+  }
 }
