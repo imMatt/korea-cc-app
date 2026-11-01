@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Cross Country">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#2d5a70">
+  <title>Korea Cross Country · Trip companion</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-head">
+    <h1>Korea Cross Country</h1>
+    <nav>
+      <a href="#days" data-tab="days">Days</a>
+      <a href="#map" data-tab="map">Map</a>
+      <a href="#stops" data-tab="stops">Stops</a>
+      <a href="#live" data-tab="live">Live</a>
+      <a href="#settings" data-tab="settings">Settings</a>
+    </nav>
+  </header>
+
+  <main id="view" class="wrap">
+    <p class="muted">Loading route…</p>
+  </main>
+
+  <footer class="wrap muted small">
+    Plan is stored on this device. Place data © OpenStreetMap contributors.
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
